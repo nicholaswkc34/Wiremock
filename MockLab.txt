@@ -1,0 +1,128 @@
+http://example.mocklab.io
+
+
+http://po59e.mocklab.io
+
+JUnit import
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+
+@Rule = Interceptor/Listener
+
+
+=============================== Start =================================
+@Rule
+public WireMockRule wireMockRule = new WireMockRule(8089); 
+// No-args constructor defaults to port 8080
+@Rule
+public WireMockRule wireMockRule = new WireMockRule(wireMockConfig().port(8089).httpsPort(8443));
+
+
+
+Stubbing
+@Test
+public void exactUrlOnly() {
+    stubFor(get(urlEqualTo("/some/thing"))
+            .willReturn(aResponse()
+                .withHeader("Content-Type", "text/plain")
+                .withBody("Hello world!")));
+
+    assertThat(testClient.get("/some/thing").statusCode(), is(200));
+    assertThat(testClient.get("/some/thing/else").statusCode(), is(404));
+
+
+Sample
+package com.github.wololock;
+
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import org.apache.commons.io.IOUtils;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.Charset;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+
+public final class WireMockHtmlTest {
+
+    @Rule
+    public WireMockRule wireMockRule = new WireMockRule(options().port(8080));
+
+    @Before
+    public void setup() throws IOException {
+        final InputStream inputStream = getClass().getClassLoader().getResourceAsStream("html/index.html");
+        final String html = new String(IOUtils.toByteArray(inputStream), Charset.forName("UTF-8"));
+
+        wireMockRule.stubFor(get(urlEqualTo("/index"))
+                    .willReturn(aResponse()
+                            .withBody(html)
+                            .withHeader("Content-Type", "text/html; charset=UTF-8")
+                    )
+        );
+    }
+
+    @Test
+    public void test() throws IOException, InterruptedException {
+        //given:
+        final URLConnection connection = new URL("http://localhost:8080/index").openConnection();
+        //when:
+        final String body = IOUtils.toString(connection.getInputStream(), Charset.forName("UTF-8"));
+        //then:
+        assertThat(body.contains("Hello world!"), is(equalTo(true)));
+    }
+}
+
+
+Standalone process
+Here we are talking about basic info on running it as a standalone process.
+Running the server with stub
+Step 1: Download the latest jar from http://wiremock.org/.
+Step 2: Run the jar.
+$ java -jar wiremock-standalone-2.4.1.jar
+By default this will start the mock server on http port 8080, which is available at:
+http://<host>:8080
+When the WireMock server starts it creates two directories under the current one: mappings and __files in the same directory as 
+of the jar by default.
+some_folder
+        |---- __files
+        |---- mappings
+        |---- wiremock-standalone-2.4.1.jar
+Step 3: Put the mapping and/or any stub response in a .json file inside mappings. 
+If you want to manage the stub in multiple files, drop it under __files, and map it against particular request in the .json file inside mappings.
+Step 4: For contents to be reflected, restart server. 
+Step 5: Use browser, or any client like Postman to test it. You can also integrate the end point in your application code like any normal URL.
+
+http://javabambino.blogspot.com/2017/08/using-wiremock-for-quick-and-easy-http.html
+
+
+
+Resolve 404 error
+Add a request listener to your WireMockRule and Use Java 8 lambdas to smoothly 
+implement the WireMock interface RequestListener that has the single method 
+requestReceived(Request request, Response response). Print out the reponse and 
+request details you want. Run your tests and check the print outs, all set!
+
+Sample
+DigitalWireMockRule.getWireMockServer().addMockServiceRequestListener(new RequestListener() {
+
+@Override
+public void requestReceived(Request request, Response response) {
+System.out.println(“URL Requested : ” + request.getAbsoluteUrl());
+System.out.println(“Request Body : ” + request.getBodyAsString());
+System.out.println(“Request Headers : ” + request.getAllHeaderKeys());
+System.out.println(“Response Status : ” + response.getStatus());
+System.out.println(“Response Body : ” + response.getBodyAsString());
+System.out.println(“”);
+}
+});
+
